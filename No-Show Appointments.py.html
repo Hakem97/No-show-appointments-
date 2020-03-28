@@ -1,0 +1,827 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[355]:
+
+
+import numpy as np
+import pandas as pd 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+# Classifier Libraries
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import classification_report,confusion_matrix
+from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn import datasets
+from scipy.interpolate import interp1d
+get_ipython().run_line_magic('matplotlib', 'inline')
+
+
+# In[470]:
+
+
+df = pd.read_csv('KaggleV2-May-2016.csv')
+Gender_M = pd.get_dummies(df['Gender'],drop_first=True)
+Noshow = pd.get_dummies(df['Noshow'],drop_first=True)
+dfn = pd.concat([df,Gender_M,Noshow], axis = 1)
+sns.countplot('Noshow', data=df)
+plt.title('NoShow Distribution', fontsize=14);
+perc = dff['Noshow'].value_counts()[0]/(len(dff['Noshow']))*100
+print("Precentage of 'No' values: ",round(perc,2),"%")
+
+
+# In[471]:
+
+
+df['Noshow'].value_counts(normalize=True).plot.bar(figsize=(10,10), title= 'NoShows')
+
+
+# In[361]:
+
+
+def probStatus(dataset,variable):
+    df=pd.crosstab(index=dataset[variable],columns=dataset['Noshow'])
+    df['probShowUp']=df['No']/(df['Yes']+df['No'])
+    df=df.reset_index()
+    return df
+
+
+# In[362]:
+
+
+df=probStatus(df,'Age')
+x0=df['Age']
+y0=df['probShowUp']
+plt.plot(x0,y0,'o',label='Age')
+x=np.linspace(0,100,30)
+options = ('slinear','cubic')
+for o in options:
+    f=interp1d(x0,y0,kind=o)
+    plt.plot(x,f(x),label=o)
+
+plt.legend()
+plt.show()
+
+
+# In[363]:
+
+
+dfn.drop(['Gender','Noshow'], axis = 1, inplace = True)
+dfn.rename(columns = {'M':'Gender M', 'Yes': 'Noshow'}, inplace = True)
+
+
+# In[364]:
+
+
+dfn['ScheduledDay'] = dfn['ScheduledDay'].apply(np.datetime64)
+dfn['AppointmentDay'] = dfn['AppointmentDay'].apply(np.datetime64)
+
+
+# In[365]:
+
+
+dfn['WaitDays'] = dfn['AppointmentDay']-dfn['ScheduledDay']
+dfn['WaitDays'] = dfn['WaitDays'].apply(lambda x: int(x.total_seconds() / (3600 * 24)))
+dfn['Month'] = dfn['ScheduledDay'].dt.month
+dfn['Year'] = dfn['ScheduledDay'].dt.year
+dfn['Day'] = dfn['ScheduledDay'].dt.day
+dfn['WDay'] = dfn['ScheduledDay'].apply(lambda x: x.weekday())
+
+
+# In[366]:
+
+
+monthc = pd.get_dummies(dfn['Month'])
+yearc = pd.get_dummies(dfn['Year'])
+dayc = pd.get_dummies(dfn['Day'])
+wdayc = pd.get_dummies(dfn['WDay'])
+
+
+# In[367]:
+
+
+dff = pd.concat([dfn,monthc,yearc,dayc,wdayc],axis=1)
+dff = dff.drop(['AppointmentID','ScheduledDay','AppointmentDay','Neighbourhood','Month','Year','Day','WDay'], axis = 1)
+
+
+# In[368]:
+
+
+dff.head(100)
+
+
+# In[369]:
+
+
+X= dff.drop(['Noshow'], axis = 1)
+Y= dff['Noshow']
+
+
+# In[370]:
+
+
+df.hist(figsize=(15,15));
+
+
+# In[371]:
+
+
+df.describe()
+
+
+# In[372]:
+
+
+dff.info()
+
+
+# In[373]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[374]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[375]:
+
+
+lr = LogisticRegression(solver='sag')
+lr.fit(X_train, y_train)
+print("\n Classifier: ", lr.__class__.__name__)
+training_score = cross_val_score(lr, X_test, y_test, cv=10)
+print("\n Classifiers: ", lr.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = lr.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(lr, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[376]:
+
+
+from collections import Counter
+
+print('The original class distribution: {},'.format(Counter(y_train)))
+
+
+# In[377]:
+
+
+DS0 = dff[dff['Noshow']==0].sample(frac=0.25)
+DS1 = dff[dff['Noshow']==1]
+
+
+# In[378]:
+
+
+DS = pd.concat([DS0,DS1])
+
+
+# In[379]:
+
+
+X= DS.drop(['Noshow'], axis = 1)
+Y= DS['Noshow']
+
+
+# In[380]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[381]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[382]:
+
+
+classifier = LogisticRegression(solver='sag')
+classifier.fit(X_train, y_train)
+print("\n Classifier: ", classifier.__class__.__name__)
+training_score = cross_val_score(classifier, X_test, y_test, cv=10)
+print("\n Classifiers: ", classifier.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = classifier.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(classifier, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[383]:
+
+
+RD0 = dff[dff['Noshow']==0].drop_duplicates()
+RD1 = dff[dff['Noshow']==1]
+
+
+# In[384]:
+
+
+RD = pd.concat([RD0,RD1])
+
+
+# In[385]:
+
+
+X= RD.drop(['Noshow'], axis = 1)
+Y= RD['Noshow']
+
+
+# In[386]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[387]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[388]:
+
+
+sm = SMOTE()
+X_train, y_train = sm.fit_sample(X_train, y_train)
+
+
+# In[389]:
+
+
+Slr = LogisticRegression(solver='liblinear')
+Slr.fit(X_train, y_train)
+
+
+# In[390]:
+
+
+Slr = LogisticRegression(solver='sag')
+Slr.fit(X_train, y_train)
+print("\n Classifier: ", Slr.__class__.__name__)
+training_score = cross_val_score(Slr, X_test, y_test, cv=10)
+print("\n Classifiers: ", Slr.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = Slr.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(Slr, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+from collections import Counter
+
+print('The original class distribution: {},'.format(Counter(y_train)))
+
+
+# In[391]:
+
+
+from collections import Counter
+
+print('The original class distribution: {},'.format(Counter(y_test)))
+
+
+# In[392]:
+
+
+X= dff.drop(['Noshow'], axis = 1)
+Y= dff['Noshow']
+
+
+# In[393]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[394]:
+
+
+rf = RandomForestClassifier()
+rf.fit(X_train, y_train)
+print("\n Classifier: ", rf.__class__.__name__)
+training_score = cross_val_score(rf, X_test, y_test, cv=10)
+print("\n Classifiers: ", rf.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = rf.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(rf, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[277]:
+
+
+for feature in zip (X, AB.feature_importances_):
+                                   
+                            print(feature)
+
+
+# In[424]:
+
+
+RDS0 = dff[dff['Noshow']==0].drop_duplicates()
+RDS1 = dff[dff['Noshow']==1]
+
+
+# In[425]:
+
+
+RDS = pd.concat([RDS0,RDS1])
+
+
+# In[426]:
+
+
+X= RDS.drop(['Noshow'], axis = 1)
+Y= RDS['Noshow']
+
+
+# In[427]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[428]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[432]:
+
+
+Srf = RandomForestClassifier( n_estimators=100)
+Srf.fit(X_train, y_train)
+
+
+# In[433]:
+
+
+sm = SMOTE()
+X_train, y_train = sm.fit_sample(X_train, y_train)
+
+
+# In[434]:
+
+
+Srf = RandomForestClassifier(n_estimators=100)
+Srf.fit(X_train, y_train)
+print("\n Classifier: ", Srf.__class__.__name__)
+training_score = cross_val_score(Srf, X_test, y_test, cv=10)
+print("\n Classifiers: ", Srf.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = Srf.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(Srf, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[204]:
+
+
+X= dff.drop(['Noshow'], axis = 1)
+Y= dff['Noshow']
+
+
+# In[205]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[206]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[220]:
+
+
+from sklearn.neighbors import KNeighborsClassifier
+
+
+# In[221]:
+
+
+KNN = KNeighborsClassifier(n_neighbors=183, metric='euclidean')
+KNN.fit(X_train, y_train)
+
+
+# In[133]:
+
+
+KNN = KNeighborsClassifier(n_neighbors=183, metric='euclidean')
+KNN.fit(X_train, y_train)
+print("\n Classifier: ", KNN.__class__.__name__)
+training_score = cross_val_score(KNN, X_test, y_test, cv=10)
+print("\n Classifiers: ", KNN.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = KNN.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from collections import Counter
+
+print('The original class distribution: {},'.format(Counter(y_train)))
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(KNN, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[209]:
+
+
+RDS0 = dff[dff['Noshow']==0].drop_duplicates()
+RDS1 = dff[dff['Noshow']==1]
+
+
+# In[210]:
+
+
+RDS = pd.concat([RDS0,RDS1])
+
+
+# In[211]:
+
+
+X= RDS.drop(['Noshow'], axis = 1)
+Y= RDS['Noshow']
+
+
+# In[212]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[213]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[216]:
+
+
+sm = SMOTE()
+X_train, y_train = sm.fit_sample(X_train, y_train)
+SKNN = KNeighborsClassifier(n_neighbors=183, metric='euclidean')
+SKNN.fit(X_train, y_train)
+
+
+# In[215]:
+
+
+SKNN = KNeighborsClassifier(n_neighbors=183, metric='euclidean')
+SKNN.fit(X_train, y_train)
+print("\n Classifier: ", SKNN.__class__.__name__)
+training_score = cross_val_score(SKNN, X_test, y_test, cv=10)
+print("\n Classifiers: ", SKNN.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = SKNN.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(SKNN, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[452]:
+
+
+from sklearn.ensemble import AdaBoostClassifier
+
+
+# In[453]:
+
+
+X= dff.drop(['Noshow'], axis = 1)
+Y= dff['Noshow']
+
+
+# In[454]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[455]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[456]:
+
+
+AB = AdaBoostClassifier()
+AB.fit(X_train, y_train)
+
+
+# In[457]:
+
+
+AB = AdaBoostClassifier()
+AB.fit(X_train, y_train)
+print("\n Classifier: ", AB.__class__.__name__)
+training_score = cross_val_score(AB, X_test, y_test, cv=10)
+print("\n Classifiers: ", AB.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = AB.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+
+from collections import Counter
+
+print('The original class distribution: {},'.format(Counter(y_train)))
+
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(AB, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[458]:
+
+
+RDS0 = dff[dff['Noshow']==0].drop_duplicates()
+RDS1 = dff[dff['Noshow']==1]
+
+
+# In[459]:
+
+
+RDS = pd.concat([RDS0,RDS1])
+
+
+# In[460]:
+
+
+X= RDS.drop(['Noshow'], axis = 1)
+Y= RDS['Noshow']
+
+
+# In[461]:
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+
+# In[462]:
+
+
+X_train = X_train.values
+X_test = X_test.values
+y_train = y_train.values
+y_test = y_test.values
+
+
+# In[463]:
+
+
+sm = SMOTE()
+X_train, y_train = sm.fit_sample(X_train, y_train)
+
+
+# In[465]:
+
+
+SAB = AdaBoostClassifier()
+SAB.fit(X_train, y_train)
+print("\n Classifier: ", SAB.__class__.__name__)
+training_score = cross_val_score(SAB, X_test, y_test, cv=10)
+print("\n Classifiers: ", SAB.__class__.__name__, "Has a training score of", round(training_score.mean(), 2) * 100, "% accuracy score")
+predictions = SAB.predict(X_test)
+print("\n Classification report: \n",classification_report(y_test,predictions))
+print("\n Confusion matrix: \n",confusion_matrix(y_test,predictions))
+from collections import Counter
+print('The original class distribution: {},'.format(Counter(y_train)))
+from sklearn.metrics import plot_confusion_matrix
+titles_options = [("Confusion matrix, without normalization", None),
+                  ("Normalized confusion matrix", 'true')]
+for title, normalize in titles_options:
+    disp = plot_confusion_matrix(SAB, X_test, y_test,
+                                 display_labels=Noshow,
+                                 cmap=plt.cm.Blues,
+                                 normalize=normalize)
+    disp.ax_.set_title(title)
+
+    print(title)
+    print(disp.confusion_matrix)
+
+plt.show()
+
+
+# In[69]:
+
+
+import statsmodels.api as sms
+RDS.drop_duplicates()
+
+
+# In[70]:
+
+
+corrmat = df.corr()
+top_corr_features = corrmat.index
+import matplotlib.pyplot as plt
+import seaborn as sns
+plt.figure(figsize=(30,30))
+g=sns.heatmap(df[top_corr_features].corr(),annot=True,cmap="RdYlGn")
+
+
+# In[308]:
+
+
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+
+
+# In[466]:
+
+
+from sklearn import metrics
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.figure(0).clf()
+
+AB.fit(X_train, y_train)
+probs = AB.predict_proba(X_test)
+probs = probs[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, probs)
+auc = roc_auc_score(y_test, probs)
+plt.plot(fpr,tpr,label="Adaptive Boosting" +str('AUC: %.2f' % auc))
+
+
+Slr.fit(X_train, y_train)
+probs = Slr.predict_proba(X_test)
+probs = probs[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, probs)
+auc = roc_auc_score(y_test, probs)
+plt.plot(fpr,tpr,label="Logistic Regression" +str('AUC: %.2f' % auc))
+
+rf.fit(X_train, y_train)
+probs = rf.predict_proba(X_test)
+probs = probs[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, probs)
+auc = roc_auc_score(y_test, probs)
+plt.plot(fpr,tpr,label="Random Forest" +str('AUC: %.2f' % auc))
+
+SKNN = KNeighborsClassifier(n_neighbors=183, metric='euclidean')
+SKNN.fit(X_train, y_train)
+probs = SKNN.predict_proba(X_test)
+probs = probs[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, probs)
+auc = roc_auc_score(y_test, probs)
+plt.plot(fpr,tpr,label="K-NN" +str('AUC: %.2f' % auc))
+
+
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('1-Specificity(False Positive Rate)')
+plt.ylabel('Sensitivity(True Positive Rate)')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.show()   # Display
+
+
+# In[ ]:
+
+
+
+
