@@ -1,0 +1,46 @@
+#Find the Correlation
+source("http://www.sthda.com/upload/rquery_cormat.r")
+require("corrplot")
+rquery.cormat(CCD)
+
+#visualizing correlations between variables
+library(corrr)
+network_plot(correlate(CCD), min_cor=0.1)
+
+#Visualising the insignificance 
+library(ggcorrplot)
+ggcorrplot(cor(CCD), p.mat = cor_pmat(CCD), hc.order=TRUE, type='lower')
+
+#Drop columns:
+CCD=CCD[, !(colnames(CCD) %in% c("AGE","SEX","ID","MARRIAGE","EDUCATION"))]
+
+#Create the network
+df=data.frame(CCD)
+res=hc(df)
+plot(res, highlight = list(nodes="default"))
+
+plot(res2)
+fitted=bn.fit(res, df)
+cv=bn.cv(df, bn = "hc", loss = "mse-lw", loss.args = list(target = "default"))
+plot(res, highlight = list(nodes='default'))
+
+#Tests
+cpquery(fitted, event = ((BILL_AMT1>=64000)&(PAY_0>=0) & (PAY_2>=0) & (PAY_3>=0) &(PAY_AMT1>=2500)), evidence = (default>=0.221))
+
+cpquery(fitted, event = ((BILL_AMT1>=1200) & (PAY_0>=-1) & (PAY_2>=0) & (PAY_3<=0) & (PAY_AMT1>=1000)), evidence = (default>=0.221))
+
+cpquery(fitted, event = ((BILL_AMT1>=300)&(PAY_0>=-1)& (PAY_2>=-1) &(PAY_3>=-1)&(PAY_AMT1>=300)) , evidence = (default>=0.221))
+
+cpquery(fitted, event = ((BILL_AMT1>=0)&(PAY_0>=1)& (PAY_2>=-2) &(PAY_3>=-2)&(PAY_AMT1>=0)) , evidence = (default>=0.221))
+
+cpquery(fitted, event = ((BILL_AMT1>=300)&(PAY_0>=-1)& (PAY_2>=-1) &(PAY_3>=-1)&(PAY_AMT1>=300)) , evidence = (default>=0.221))
+
+#correlation between PAY_2 & PAY_0
+
+library(ggplot2)
+stest <- cpdist(fitted, nodes = c('PAY_0', 'PAY_2'), evidence = ((default>=0.221)))
+ggplot(stest, aes(x = PAY_0, y = PAY_2)) + geom_bin2d()
+cor(stest$PAY_0, stest$PAY_2)
+
+#Q-Q Plot
+bn.fit.qqplot(fitted)
