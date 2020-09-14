@@ -1,0 +1,160 @@
+# Load the gene data and scatter plot individual genes against time (min)
+> plot(gene_data$`Time (min)`,gene_data$x3) > plot(gene_data$`Time (min)`,gene_data$x3) > plot(gene_data$`Time (min)`,gene_data$x1) > plot(gene_data$`Time (min)`,gene_data$x2) > plot(gene_data$`Time (min)`,gene_data$x4) > plot(gene_data$`Time (min)`,gene_data$x5)
+# Profile plot showing the variation in each of the genes
+> makeProfilePlot <- function(mylist,names)
+{
+require(RColorBrewer)
+# find out how many variables we want to include numvariables <- length(mylist)
+# choose 'numvariables' random colours
+colours <- brewer.pal(numvariables,"Set1")
+# find out the minimum and maximum values of the variables: mymin <- 1e+20
+mymax <- 1e-20
+for (i in 1:numvariables)
+{
+vectori <- mylist[[i]]
+mini <- min(vectori)
+maxi <- max(vectori)
+if (mini < mymin) { mymin <- mini } if (maxi > mymax) { mymax <- maxi }
+}
+# Plot the variables
+for (i in 1:numvariables)
+{
+vectori <- mylist[[i]]
+namei <- names[i]
+colouri <- colours[i]
+if (i == 1) { plot(vectori,col=colouri,type="l",ylim=c(mymin,mymax)) } else { points(vectori, col=colouri,type="l") } lastxval <- length(vectori)
+lastyval <- vectori[length(vectori)] text((lastxval-10),(lastyval),namei,col="black",cex=0.6)
+} }
+> library(RColorBrewer)
+> names <- c("x1","x2","x3","x4","x5")
+> mylist <- list(gene_data$x1,gene_data$x2,gene_data$x3,gene_data$x4,gene_data$x5)
+> makeProfilePlot(mylist,names)
+# Probability density function for the genes with histogram
+
+-à# change x value to obtain the different gene distribution > ggplot(gene_data, aes(x = x5))
++ geom_histogram(aes(y = ..density..),
++ binwidth = .1, colour = "blue", fill = "white")
++ geom_density(alpha = .2, fill="#FF6655") + geom_vline(aes(xintercept = mean(x5)),
+colour = "red", linetype ="longdash", size = .5)
+> plot(ecdf(gene_data$x4)) ///replace x with another gene
+# The scatter plot which visually shows the correlation between different genes on the off-diagonal cell. The diagonal cells show the histogram of each genes.
+> library(“car”)
+> scatterplotMatrix(gene_data)
+# Genes descriptive statistics on R showing, mean, variance, standard deviation within individual genes
+> sapply(gene_data,mean)
+> sapply(gene_data,var)
+> sapply(gene_data,sd)
+# Genes Correlations
+> cor.test(gene_data$x1, gene_data$x2) > cor.test(gene_data$x1, gene_data$x3) > cor.test(gene_data$x1, gene_data$x4) > cor.test(gene_data$x1, gene_data$x5) > cor.test(gene_data$x2, gene_data$x3) > cor.test(gene_data$x2, gene_data$x4) > cor.test(gene_data$x2, gene_data$x5) > cor.test(gene_data$x3, gene_data$x4) > cor.test(gene_data$x3, gene_data$x5) > cor.test(gene_data$x4, gene_data$x5)
+Performing PCA using eigenvalue and eigenvectors
+library(factoextra)
+# finding the PC importance
+genepca=prcomp(gene_data[,2:6])
+genepca # show the variable and their PC summary(genepca)
+genepca$rotation[,1] # eigenvector for PC 1 genepca$rotation[,2] # eigenvector for PC 2
+# Get the scree plot
+res.pca <- prcomp(gene_data[,2:6], scale = TRUE)
+ fviz_eig(res.pca)
+# Plot the PC 1 & PC2
+plot(genepca[,1],genepca[,2], xlab='PC2' , ylab='PC1') text(genepca$x[,1],genepca$x[,2], cex=0.7, pos=4, col="red")
+
+ # Plot the PCs variations
+fviz_pca_var(genepca,
+col.var = "contrib", # Colour by contributions to the PC
+gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+)
+# libraries:
+tidyverse caret
+repel = TRUE
+# Avoid text overlapping
+Model selection
+# Split the gene data into train and test (80% train & 20% test)
+training.samples <- gene_data$x3 %>%
++ createDataPartition(p = 0.8, list = FALSE) > train.data <- gene_data[training.samples, ] > test.data <- gene_data[-training.samples, ]
+# Plot the model in 3d to see if the regulation is activation or repression
+>scatterplot3d(gene_data$x3, gene_data$x4, gene_data$x5)
+# Setup a model which contains all the predictors.
+Model= lm(formula = x3 ~ x4 + I(x4^2) + I(x4^3) + x5 + I(x5^2) + I(x5^3), data = train.data)
+# Select the optimal model one iteration at a time
+>m1=lm(formula = x3 ~ I(x5^3), data = train.data) # model 1
+>m2=lm(formula = x3 ~ x4 + I(x5^2), data = train.data) # model 2
+>m3=lm(formula = x3 ~ x4 + I(x4^3) + I(x5^2), data = train.data) # model 3
+>m4=lm(formula = x3 ~ x4 + I(x4^3) + x5 + I(x5^2), data = train.data) # model 4
+>m5=lm(formula = x3 ~ x4 + I(x4^2) + I(x4^3) + x5 + I(x5^2), data = train.data) #model 5
+>m6=lm(formula = x3 ~ x4 + I(x4^2) + I(x4^3) + x5 + I(x5^2) + I(x5^3), data = train.data) # model 6
+>m7=lm(formula = x3 ~ x4 + I(x4^2) + I(x4^3)+ I(x4^4)+ + x5 + I(x5^2) + I(x5^3), data = train.data) # model 7
+>m8=lm(formula = x3 ~ x4 + I(x4^2) + I(x4^3) + I(x4^4)+ x5 + I(x5^2) + I(x5^3)+ I(x5^4),, data = train.data) # model 8
+#
+# Find the model which has the highest R-squared ols_step_forward_p(model) plot(ols_step_best_subset(model))
+ Finding all possible model and parameters
+ ols_step_all_possible_betas(model)
+
+
+# Set m2 as the optimal model
+m2=optimalmodel
+# Plot the relationship of the variables in 3D variables
+scatterplot3d(optimalmodel$model)
+# Training prediction RMSE & R-squared start from m1 to find model with least RMSE
+> predictions <- optimalmodel %>% predict(train.data)
+# Models performance from m1 to m6
+> data.frame(
++ RMSE = RMSE(predictions, train.data$x3), + R2 = R2(predictions, train.data$x3)
++)
+# optimal model statistical significance
+summary(optimlalmodel)
+# Covariance and correlation of the trained model
+cov(optimalmodel$model) var(optimalmodel$model) cor(optimalmodel$model)
+# All possible correlation combination between estimated parameters
+scatterplotMatrix(optimalmodel$model)
+# Plot the correlation and covariance of model parameter distribution and contour uncertainties
+plot.ecdf(cov(optimalmodel$model)) plot.ecdf(cor(optimalmodel$model))
+> contourplot(cov(optimalmodel$model)) > contourplot(cor(optimalmodel$model))
+# Calculate the model 95% CI
+predict(optimalmodel,interval='confidence', level=0.95)
+# Calculate the parameter CI
+confint(optimalmodel, level=0.95)
+# predicting the output using the selected model
+predcitoptimal= predict(optimalmodel)
+# calculate the optimal model predicted mean
+mean(predict(optimalmodel))
+# Calculating the training residuals
+predict(optimalmodel$residual,interval='confidence', level=0.95)
+# Combine the predicted output vector and time vector into a matrix
+Predcitedplot=cbind(gene_data$time, predcitoptimal)
+
+# Calculating the CI
+CI=predict(optimalmodel,interval='confidence', level=0.95)
+# Combine vector into a matrix for the CI
+Pred=cbind(CI, optimalmodel$model)
+# Plot the model predicted data with respect to time with CI
+>plot(optimalmodel$fitted.values) > lines(mean)
+> lines(mean, col='purple')
+> lines(pred[,4], col='green')
+> lines(pred[,2], col='red')
+> lines(pred[,3], col='blue')
+> legend("bottomright",c("upper","lower","Predicted"),
++ col=c("blue","red","green"), cex=0.75, fill = 1:6, lwd=3)
+# DFBETA Plot
+ols_plot_dfbetas(model, print_plot = TRUE)
+# Observed vs fitted data with CI plot
+up=lm(formula = pred ~ pred[, 3], data = train.data)
+lwr=lm(formula = pred ~ pred[, 2], data = train.data)
+plot(pred[, 1] , pred[,4], xlab="fitted", ylab="obeserved", col='orange' ) abline(moldel, col='black')
+abline(up, col='blue')
+abline(lwr, col='red')
+>legend("bottomright",c("upper","lower","fit"),
++ col=c("blue","red","black"), cex=0.75, fill = 1:6, lwd=3)
+# Show the RMSE & R-Squared of the predicted 20% of the data- starting from m1(model 1)
+>predictions <- m1%>% predict(test.data)
+> data.frame(
++ RMSE = RMSE (predictions, test.data$x3), + R2 = R2(predictions, test.data$x3)
++)
+# optimal model statistical significance
+Summary(testmodel)
+# Plot the selected non-linear model on the test dataset on the observed data Testmodel= lm(formula = x3 ~ x4 + I(x4^3) + I(x5^2), data = test.data) plot(optimalmodel$fitted.values)
+> lines(optimalmodel$model[,1], col='green')
+> lines(predict(optimalmodel))
+> legend("bottomright",c("fitted","observed"),
++ col=c("green","black"), cex=0.70, fill = 1:8, lwd=3)
+# Observation vs Fitted of test plot
+ols_plot_obs_fit(testmodel, print_plot = TRUE)
